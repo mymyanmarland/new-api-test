@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRouter Chat Interface</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    
+    <style>
+        /* --- CSS STYLES --- */
+        :root {
+            --primary-color: #007AFF; /* iOS Blue */
+            --primary-text: #FFFFFF;
+            --bg-color: #F2F2F7;
+            --chat-bg: #FFFFFF;
+            --user-msg-bg: #007AFF;
+            --ai-msg-bg: #E5E5EA;
+            --text-color: #1C1C1E;
+            --secondary-text: #8E8E93;
+            --border-color: #D1D1D6;
+            --error-color: #FF3B30;
+            --radius-lg: 18px;
+            --radius-sm: 8px;
+            --shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 600px;
+            height: 100%;
+            background: var(--chat-bg);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: var(--shadow);
+        }
+
+        /* Header */
+        .chat-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .header-info h1 { font-size: 1.1rem; font-weight: 600; }
+        .status-dot { width: 8px; height: 8px; background: #34C759; border-radius: 50%; display: inline-block; margin-left: 5px; }
+
+        #config-toggle { border: none; background: none; font-size: 1.2rem; cursor: pointer; }
+
+        /* Config Panel */
+        .config-panel {
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: var(--chat-bg);
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 5;
+            transition: transform 0.3s ease;
+        }
+
+        .config-panel.hidden { transform: translateY(-150%); display: none; }
+
+        .input-group { margin-bottom: 1rem; }
+        .input-group label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 500; }
+        .input-group input { width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); }
+        .helper-text { font-size: 0.8rem; color: var(--secondary-text); margin-top: 5px; }
+        .btn-secondary { padding: 0.6rem 1.2rem; background: var(--ai-msg-bg); border: none; border-radius: var(--radius-sm); cursor: pointer; }
+
+        /* Chat Window */
+        .chat-window {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            scroll-behavior: smooth;
+        }
+
+        .welcome-message { text-align: center; color: var(--secondary-text); margin-top: 2rem; }
+
+        /* Messages */
+        .message {
+            max-width: 85%;
+            padding: 10px 16px;
+            border-radius: var(--radius-lg);
+            line-height: 1.5;
+            position: relative;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--user-msg-bg);
+            color: var(--primary-text);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            background-color: var(--ai-msg-bg);
+            color: var(--text-color);
+            border-bottom-left-radius: 4px;
+        }
+
+        /* Markdown Styles inside messages */
+        .message code { background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+        .message pre { background: #2d2d2d; color: #fff; padding: 10px; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
+        .message pre code { background: transparent; padding: 0; color: inherit; }
+        .message p { margin-bottom: 0.5rem; }
+        .message p:last-child { margin-bottom: 0; }
+
+        /* Typing Indicator */
+        .typing-indicator {
+            padding: 10px 16px;
+            background: var(--ai-msg-bg);
+            border-radius: var(--radius-lg);
+            align-self: flex-start;
+            margin-left: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 5px;
+            width: fit-content;
+        }
+        .typing-indicator.hidden { display: none; }
+        .typing-indicator span {
+            width: 6px;
+            height: 6px;
+            background: #8E8E93;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+        /* Input Area */
+        .chat-input-area {
+            padding: 1rem;
+            background: var(--chat-bg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        #chat-form { display: flex; gap: 0.8rem; align-items: flex-end; }
+
+        textarea {
+            flex: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 10px 15px;
+            resize: none;
+            max-height: 100px;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        #send-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        #send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Error Toast */
+        .error-toast {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--error-color);
+            color: white;
+            padding: 0.8rem 1.2rem;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow);
+            font-size: 0.9rem;
+            z-index: 20;
+            transition: opacity 0.3s;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .error-toast.show { opacity: 1; }
+
+        /* Responsive */
+        @media (min-width: 600px) {
+            .app-container { margin: 2rem auto; height: 90vh; border-radius: var(--radius-lg); overflow: hidden; }
+        }
+    </style>
+</head>
+<body>
+
+    <main class="app-container">
+        <header class="chat-header">
+            <div class="header-info">
+                <h1>AI Assistant</h1>
+                <span class="status-dot"></span>
+            </div>
+            <button id="config-toggle" aria-label="Settings">⚙️</button>
+        </header>
+
+        <section id="config-panel" class="config-panel hidden" aria-hidden="true">
+            <div class="input-group">
+                <label for="api-key">OpenRouter API Key</label>
+                <input type="password" id="api-key" placeholder="sk-or-..." autocomplete="off">
+                <p class="helper-text">Key is stored in session memory only.</p>
+            </div>
+            <button id="save-key" class="btn-secondary">Save & Close</button>
+        </section>
+
+        <section id="chat-window" class="chat-window" role="log" aria-live="polite">
+            <div class="welcome-message">
+                <p>Hello! Please configure your API key to start chatting.</p>
+            </div>
+            </section>
+
+        <div id="typing-indicator" class="typing-indicator hidden">
+            <span></span><span></span><span></span>
+        </div>
+
+        <div id="error-toast" class="error-toast"></div>
+
+        <footer class="chat-input-area">
+            <form id="chat-form">
+                <textarea 
+                    id="user-input" 
+                    rows="1" 
+                    placeholder="Type a message..." 
+                    aria-label="Message input"></textarea>
+                <button type="submit" id="send-btn" aria-label="Send message">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </form>
+        </footer>
+    </main>
+
+    <script>
+        /**
+         * Chat Application Controller
+         */
+        (function() {
+            'use strict';
+
+            // --- CONFIGURATION & STATE ---
+            const CONFIG = {
+                apiEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
+                model: 'openai/gpt-4o-mini',
+                siteUrl: window.location.origin, 
+                siteName: 'My Local Chatbot'
+            };
+
+            const state = {
+                apiKey: sessionStorage.getItem('or_api_key') || '',
+                messages: [], // Context window
+                isLoading: false
+            };
+
+            // --- DOM ELEMENTS ---
+            const elements = {
+                chatWindow: document.getElementById('chat-window'),
+                form: document.getElementById('chat-form'),
+                input: document.getElementById('user-input'),
+                sendBtn: document.getElementById('send-btn'),
+                typingIndicator: document.getElementById('typing-indicator'),
+                configPanel: document.getElementById('config-panel'),
+                configToggle: document.getElementById('config-toggle'),
+                apiKeyInput: document.getElementById('api-key'),
+                saveKeyBtn: document.getElementById('save-key'),
+                errorToast: document.getElementById('error-toast')
+            };
+
+            // --- INITIALIZATION ---
+            function init() {
+                // Initialize marked.js options
+                if (window.marked) {
+                    window.marked.setOptions({
+                        highlight: function(code, lang) {
+                            if (window.hljs) {
+                                const language = window.hljs.getLanguage(lang) ? lang : 'plaintext';
+                                return window.hljs.highlight(code, { language }).value;
+                            }
+                            return code;
+                        },
+                        breaks: true
+                    });
+                }
+
+                // Pre-fill API key if exists
+                if (state.apiKey) {
+                    elements.apiKeyInput.value = state.apiKey;
+                }
+
+                setupEventListeners();
+            }
+
+            // --- EVENT HANDLERS ---
+            function setupEventListeners() {
+                // Form Submit
+                elements.form.addEventListener('submit', handleFormSubmit);
+
+                // Enter key to submit (Shift+Enter for new line)
+                elements.input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleFormSubmit(e);
+                    }
+                    // Auto-resize textarea
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                });
+
+                // Config Panel Toggles
+                elements.configToggle.addEventListener('click', () => {
+                    const isHidden = elements.configPanel.classList.contains('hidden');
+                    elements.configPanel.classList.toggle('hidden');
+                    elements.configPanel.setAttribute('aria-hidden', !isHidden);
+                });
+
+                elements.saveKeyBtn.addEventListener('click', () => {
+                    const key = elements.apiKeyInput.value.trim();
+                    if (key) {
+                        state.apiKey = key;
+                        sessionStorage.setItem('or_api_key', key);
+                        elements.configPanel.classList.add('hidden');
+                        showToast('API Key saved!', 'success');
+                    }
+                });
+            }
+
+            // --- CORE LOGIC ---
+
+            async function handleFormSubmit(e) {
+                e.preventDefault();
+                
+                const content = elements.input.value.trim();
+                if (!content || state.isLoading) return;
+
+                if (!state.apiKey) {
+                    showToast('Please enter your OpenRouter API Key in settings.', 'error');
+                    elements.configPanel.classList.remove('hidden');
+                    return;
+                }
+
+                // 1. UI: Clear input & Show User Message
+                elements.input.value = '';
+                elements.input.style.height = 'auto'; // Reset height
+                addMessageToUI('user', content);
+                
+                // 2. State: Update History
+                state.messages.push({ role: 'user', content });
+
+                // 3. API Call
+                toggleLoading(true);
+
+                try {
+                    const response = await fetchOpenRouter(state.messages);
+                    
+                    // Handle Response
+                    const aiContent = response.choices[0].message.content;
+                    state.messages.push({ role: 'assistant', content: aiContent });
+                    addMessageToUI('assistant', aiContent);
+
+                } catch (error) {
+                    console.error(error);
+                    handleError(error);
+                } finally {
+                    toggleLoading(false);
+                }
+            }
+
+            async function fetchOpenRouter(messages) {
+                const response = await fetch(CONFIG.apiEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${state.apiKey}`,
+                        'HTTP-Referer': CONFIG.siteUrl,
+                        'X-Title': CONFIG.siteName
+                    },
+                    body: JSON.stringify({
+                        model: CONFIG.model,
+                        messages: messages
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    const error = new Error(`API Error: ${response.status}`);
+                    error.status = response.status;
+                    error.data = errData;
+                    throw error;
+                }
+
+                return await response.json();
+            }
+
+            // --- UI UPDATERS ---
+
+            function addMessageToUI(role, text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role}`;
+                
+                // Render Markdown if available
+                if (window.marked && role === 'assistant') {
+                    messageDiv.innerHTML = window.marked.parse(text);
+                } else {
+                    messageDiv.innerText = text;
+                }
+
+                // Hide welcome message
+                const welcome = elements.chatWindow.querySelector('.welcome-message');
+                if (welcome) welcome.style.display = 'none';
+
+                elements.chatWindow.appendChild(messageDiv);
+                scrollToBottom();
+            }
+
+            function toggleLoading(isLoading) {
+                state.isLoading = isLoading;
+                elements.sendBtn.disabled = isLoading;
+                
+                if (isLoading) {
+                    elements.typingIndicator.classList.remove('hidden');
+                    elements.chatWindow.appendChild(elements.typingIndicator);
+                } else {
+                    elements.typingIndicator.classList.add('hidden');
+                }
+                scrollToBottom();
+            }
+
+            function scrollToBottom() {
+                elements.chatWindow.scrollTop = elements.chatWindow.scrollHeight;
+            }
+
+            function handleError(error) {
+                let msg = 'Something went wrong. Please try again.';
+                
+                if (error.status === 401) {
+                    msg = 'Invalid API Key. Please check your settings.';
+                    state.apiKey = ''; // Clear invalid key
+                    sessionStorage.removeItem('or_api_key');
+                    elements.configPanel.classList.remove('hidden');
+                } else if (error.status === 429) {
+                    msg = 'Rate limit exceeded. Please wait a moment.';
+                } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                    msg = 'Network error. Check your internet connection.';
+                }
+
+                showToast(msg, 'error');
+            }
+
+            function showToast(message, type = 'error') {
+                const toast = elements.errorToast;
+                toast.textContent = message;
+                toast.style.backgroundColor = type === 'success' ? '#34C759' : '#FF3B30';
+                toast.classList.add('show');
+
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+
+            // Run Init
+            init();
+
+        })();
+    </script>
+</body>
+</html>
