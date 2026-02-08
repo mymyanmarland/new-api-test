@@ -3,73 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Chatbot (Free Model)</title>
+    <title>Gemini 2.0 Flash Chat</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
+        /* --- CSS STYLES --- */
         :root {
-            --primary: #2563eb;
-            --bg: #f8fafc;
+            --primary: #4285F4; /* Google Blue */
+            --bg: #f0f2f5;
             --chat-bg: #ffffff;
-            --user-msg: #2563eb;
-            --ai-msg: #f1f5f9;
-            --text: #1e293b;
-            --border: #e2e8f0;
+            --user-bg: #4285F4;
+            --ai-bg: #E8EAED;
+            --text: #202124;
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
 
         body {
-            background: var(--bg);
-            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
             display: flex;
             justify-content: center;
+            height: 100vh;
         }
 
-        .container {
+        .app-container {
             width: 100%;
             max-width: 600px;
             background: var(--chat-bg);
             display: flex;
             flex-direction: column;
             position: relative;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
         /* Header */
         header {
-            padding: 1rem;
-            border-bottom: 1px solid var(--border);
+            padding: 15px;
+            border-bottom: 1px solid #dadce0;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: white;
-            z-index: 10;
+            background: rgba(255,255,255,0.95);
         }
 
-        h1 { font-size: 1.2rem; font-weight: 600; }
-        
-        #settings-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 5px;
-        }
+        h1 { font-size: 1.1rem; margin: 0; color: #5f6368; }
+        .badge { background: #e6f4ea; color: #137333; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+
+        #settings-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #5f6368; }
 
         /* Chat Area */
-        #chat-box {
+        #chat-window {
             flex: 1;
             overflow-y: auto;
-            padding: 1rem;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 15px;
+            scroll-behavior: smooth;
         }
 
         .message {
             max-width: 85%;
-            padding: 0.75rem 1rem;
-            border-radius: 1rem;
+            padding: 10px 16px;
+            border-radius: 18px;
             line-height: 1.5;
             font-size: 0.95rem;
             word-wrap: break-word;
@@ -77,133 +72,148 @@
 
         .user-msg {
             align-self: flex-end;
-            background: var(--user-msg);
+            background: var(--user-bg);
             color: white;
             border-bottom-right-radius: 4px;
         }
 
         .ai-msg {
             align-self: flex-start;
-            background: var(--ai-msg);
+            background: var(--ai-bg);
             color: var(--text);
             border-bottom-left-radius: 4px;
         }
 
-        .ai-msg p { margin-bottom: 0.5rem; }
-        .ai-msg p:last-child { margin-bottom: 0; }
-        .ai-msg pre { background: #1e293b; color: white; padding: 10px; border-radius: 8px; overflow-x: auto; }
+        /* Markdown Styling */
+        .ai-msg p { margin: 0 0 10px 0; }
+        .ai-msg p:last-child { margin: 0; }
+        .ai-msg code { background: rgba(0,0,0,0.1); padding: 2px 5px; border-radius: 4px; font-family: monospace; }
+        .ai-msg pre { background: #2d2d2d; color: #fff; padding: 10px; border-radius: 8px; overflow-x: auto; }
 
         /* Input Area */
         .input-area {
-            padding: 1rem;
-            border-top: 1px solid var(--border);
+            padding: 15px;
+            border-top: 1px solid #dadce0;
             background: white;
             display: flex;
-            gap: 0.5rem;
+            gap: 10px;
         }
 
         textarea {
             flex: 1;
-            padding: 10px;
-            border: 1px solid var(--border);
-            border-radius: 20px;
+            padding: 12px;
+            border: 1px solid #dadce0;
+            border-radius: 24px;
             resize: none;
-            height: 44px;
-            max-height: 120px;
+            height: 24px; /* Init height */
             outline: none;
+            font-family: inherit;
         }
 
-        button#send-btn {
+        textarea:focus { border-color: var(--primary); }
+
+        #send-btn {
             background: var(--primary);
             color: white;
             border: none;
-            padding: 0 1.2rem;
-            border-radius: 20px;
-            font-weight: 600;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
         }
-        
-        button#send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #send-btn:disabled { background: #dadce0; cursor: not-allowed; }
 
         /* Settings Modal */
-        #settings-modal {
+        #settings-panel {
             position: absolute;
-            top: 0; left: 0; right: 0;
+            top: 60px; left: 10px; right: 10px;
             background: white;
             padding: 20px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            transform: translateY(-100%);
-            transition: transform 0.3s ease;
-            z-index: 20;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 100;
+            display: none;
+            border: 1px solid #dadce0;
         }
-        #settings-modal.open { transform: translateY(0); }
+        #settings-panel.show { display: block; }
 
-        .input-group { margin-bottom: 15px; }
-        .input-group label { display: block; margin-bottom: 5px; font-weight: 500; }
-        .input-group input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
-        
-        #save-key {
-            background: #10b981;
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 10px;
+            background: #34a853;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
-            width: 100%;
+            font-weight: bold;
         }
 
-        /* Toast Notification */
+        /* Status Toast */
         #toast {
             position: fixed;
-            bottom: 20px;
+            bottom: 80px;
             left: 50%;
             transform: translateX(-50%);
-            background: #ef4444;
+            background: #323232;
             color: white;
             padding: 10px 20px;
-            border-radius: 8px;
+            border-radius: 20px;
             font-size: 0.9rem;
             opacity: 0;
-            pointer-events: none;
             transition: opacity 0.3s;
+            pointer-events: none;
             text-align: center;
-            width: 90%;
-            max-width: 400px;
+            width: max-content;
+            max-width: 80%;
         }
         #toast.show { opacity: 1; }
 
-        /* Typing Dot Animation */
-        .typing { display: flex; gap: 4px; padding: 10px; background: var(--ai-msg); width: fit-content; border-radius: 1rem; display: none; margin-bottom: 10px; }
-        .typing.active { display: flex; }
-        .dot { width: 6px; height: 6px; background: #64748b; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
-        .dot:nth-child(1) { animation-delay: -0.32s; }
-        .dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        /* Typing Indicator */
+        .typing { display: none; margin-left: 20px; margin-bottom: 10px; }
+        .typing.active { display: flex; gap: 5px; }
+        .dot { width: 8px; height: 8px; background: #bbc0c4; border-radius: 50%; animation: pulse 1.5s infinite; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
 
-        @media(min-width: 600px) { .container { height: 90vh; margin-top: 2vh; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); } }
+        @media (min-width: 600px) { .app-container { height: 90vh; margin-top: 5vh; border-radius: 16px; } }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="app-container">
     <header>
-        <h1>AI Chatbot <span style="font-size: 0.8em; color: green; background: #dcfce7; padding: 2px 6px; border-radius: 4px;">Free</span></h1>
-        <button id="settings-btn">⚙️</button>
+        <div>
+            <h1>Gemini Chat <span class="badge">Flash 2.0 Free</span></h1>
+        </div>
+        <button id="settings-btn" title="Settings">⚙️</button>
     </header>
 
-    <div id="settings-modal">
-        <div class="input-group">
-            <label>OpenRouter API Key</label>
-            <input type="password" id="api-key-input" placeholder="sk-or-..." autocomplete="off">
-            <small style="color: #64748b; font-size: 0.8rem;">Key is saved in your browser only.</small>
-        </div>
-        <button id="save-key">Save Key</button>
+    <div id="settings-panel">
+        <h3>API Setup</h3>
+        <p style="font-size: 0.9rem; color: #666;">Enter your OpenRouter API Key:</p>
+        <input type="password" id="api-key" placeholder="sk-or-..." autocomplete="off">
+        <button class="btn-save" id="save-key">Save Key</button>
     </div>
 
-    <div id="chat-box">
-        <div class="ai-msg message" style="background: #e0f2fe;">
-            Hello! I am using the <b>Free Google Gemini</b> model. <br>
-            Please click ⚙️ to set your API Key first.
+    <div id="chat-window">
+        <div class="ai-msg message">
+            Hello! I am <b>Gemini 2.0 Flash</b>. <br>
+            Please click the gear icon (⚙️) to set your API Key first.
         </div>
     </div>
 
@@ -211,152 +221,163 @@
         <div class="dot"></div><div class="dot"></div><div class="dot"></div>
     </div>
 
+    <div id="toast"></div>
+
     <div class="input-area">
-        <textarea id="user-input" placeholder="Type a message..."></textarea>
-        <button id="send-btn">Send</button>
+        <textarea id="user-input" placeholder="Type a message..." rows="1"></textarea>
+        <button id="send-btn">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+        </button>
     </div>
 </div>
 
-<div id="toast"></div>
-
 <script>
-    // --- CONFIGURATION ---
-    // Using the Free Model to avoid Payment/Credit errors
-    const MODEL = "google/gemini-2.0-flash-lite-preview-02-05:free"; 
-    const API_URL = "https://openrouter.ai/api/v1/chat/completions";
+    /**
+     * CONFIGURATION
+     * Using Gemini 2.0 Flash Lite Preview (Free Tier on OpenRouter)
+     */
+    const CONFIG = {
+        model: "google/gemini-2.0-flash-lite-preview-02-05:free", 
+        apiUrl: "https://openrouter.ai/api/v1/chat/completions"
+    };
 
-    // --- STATE ---
-    let apiKey = localStorage.getItem("openrouter_key") || "";
-    let messages = [];
+    // State
+    let apiKey = localStorage.getItem("or_gemini_key") || "";
+    let messageHistory = [];
 
-    // --- ELEMENTS ---
-    const chatBox = document.getElementById('chat-box');
-    const userInput = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
-    const settingsBtn = document.getElementById('settings-btn');
-    const settingsModal = document.getElementById('settings-modal');
-    const apiKeyInput = document.getElementById('api-key-input');
-    const saveKeyBtn = document.getElementById('save-key');
-    const toast = document.getElementById('toast');
-    const typingIndicator = document.getElementById('typing-indicator');
+    // Elements
+    const els = {
+        chatWindow: document.getElementById('chat-window'),
+        input: document.getElementById('user-input'),
+        sendBtn: document.getElementById('send-btn'),
+        settingsBtn: document.getElementById('settings-btn'),
+        settingsPanel: document.getElementById('settings-panel'),
+        apiKeyInput: document.getElementById('api-key'),
+        saveKeyBtn: document.getElementById('save-key'),
+        toast: document.getElementById('toast'),
+        typing: document.getElementById('typing-indicator')
+    };
 
-    // --- INITIAL SETUP ---
-    if(apiKey) apiKeyInput.value = apiKey;
+    // Initialize
+    if (apiKey) els.apiKeyInput.value = apiKey;
 
-    // --- EVENT LISTENERS ---
-    settingsBtn.onclick = () => settingsModal.classList.toggle('open');
+    // Event Listeners
+    els.settingsBtn.onclick = () => els.settingsPanel.classList.toggle('show');
     
-    saveKeyBtn.onclick = () => {
-        const key = apiKeyInput.value.trim();
-        if(key.startsWith("sk-or-")) {
+    els.saveKeyBtn.onclick = () => {
+        const key = els.apiKeyInput.value.trim();
+        if (key.startsWith("sk-or-")) {
             apiKey = key;
-            localStorage.setItem("openrouter_key", key);
-            settingsModal.classList.remove('open');
-            showToast("API Key Saved!", "green");
+            localStorage.setItem("or_gemini_key", key);
+            els.settingsPanel.classList.remove('show');
+            showToast("API Key Saved!", "#34a853");
         } else {
-            showToast("Invalid Key format. Must start with 'sk-or-'");
+            showToast("Invalid Key. Must start with 'sk-or-'", "#EA4335");
         }
     };
 
-    sendBtn.onclick = sendMessage;
-    userInput.onkeydown = (e) => {
-        if(e.key === 'Enter' && !e.shiftKey) {
+    els.sendBtn.onclick = sendMessage;
+    
+    els.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
         }
-    };
+        // Auto-resize
+        e.target.style.height = 'auto';
+        e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
+    });
 
-    // --- CORE LOGIC ---
+    // Core Logic
     async function sendMessage() {
-        const text = userInput.value.trim();
+        const text = els.input.value.trim();
         if (!text) return;
+
         if (!apiKey) {
-            settingsModal.classList.add('open');
-            showToast("Please enter your API Key first!");
+            els.settingsPanel.classList.add('show');
+            showToast("Please save your API Key first!", "#EA4335");
             return;
         }
 
-        // 1. UI Updates
-        addMessage("user", text);
-        userInput.value = "";
-        messages.push({ role: "user", content: text });
-        
-        // 2. Show Loading
+        // 1. Update UI (User)
+        appendMessage('user', text);
+        els.input.value = '';
+        els.input.style.height = '24px';
+        messageHistory.push({ role: "user", content: text });
+
+        // 2. Loading State
         setLoading(true);
 
         try {
-            // 3. API Call
-            const response = await fetch(API_URL, {
+            // 3. API Request
+            const response = await fetch(CONFIG.apiUrl, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,
                     "Content-Type": "application/json",
-                    // Simple headers to avoid CORS issues on GitHub Pages
-                    "HTTP-Referer": window.location.href, 
-                    "X-Title": "GitHub Chatbot"
+                    "HTTP-Referer": window.location.href, // Required by OpenRouter
+                    "X-Title": "Gemini Chat"
                 },
                 body: JSON.stringify({
-                    model: MODEL,
-                    messages: messages
+                    model: CONFIG.model,
+                    messages: messageHistory
                 })
             });
 
-            // 4. Handle Errors
+            // 4. Handle Response
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                console.error("API Error:", errData);
-                
-                if (response.status === 401) throw new Error("Invalid API Key. Please check settings.");
-                if (response.status === 402) throw new Error("Insufficient Credits (Though this model should be free).");
-                throw new Error(`Error: ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                console.error("API Error:", errorData);
+                throw new Error(errorData.error?.message || `Error ${response.status}`);
             }
 
-            // 5. Success
             const data = await response.json();
-            const reply = data.choices[0].message.content;
-            
-            messages.push({ role: "assistant", content: reply });
-            addMessage("assistant", reply);
+            const aiText = data.choices[0].message.content;
 
-        } catch (error) {
-            showToast(error.message);
-            messages.pop(); // Remove failed user message from history logic (optional)
+            // 5. Update UI (AI)
+            appendMessage('assistant', aiText);
+            messageHistory.push({ role: "assistant", content: aiText });
+
+        } catch (err) {
+            showToast(err.message, "#EA4335");
+            // Optional: Remove failed message from history
+            messageHistory.pop(); 
         } finally {
             setLoading(false);
         }
     }
 
-    // --- HELPERS ---
-    function addMessage(role, text) {
+    // Helpers
+    function appendMessage(role, text) {
         const div = document.createElement('div');
         div.className = `message ${role === 'user' ? 'user-msg' : 'ai-msg'}`;
         
         if (role === 'assistant') {
-            div.innerHTML = marked.parse(text); // Render Markdown
+            div.innerHTML = marked.parse(text);
         } else {
             div.innerText = text;
         }
-        
-        chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight;
+
+        els.chatWindow.appendChild(div);
+        els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
     }
 
-    function setLoading(loading) {
-        sendBtn.disabled = loading;
-        if (loading) {
-            chatBox.appendChild(typingIndicator);
-            typingIndicator.classList.add('active');
+    function setLoading(isLoading) {
+        els.sendBtn.disabled = isLoading;
+        if (isLoading) {
+            els.chatWindow.appendChild(els.typing);
+            els.typing.classList.add('active');
         } else {
-            typingIndicator.classList.remove('active');
+            els.typing.classList.remove('active');
         }
-        chatBox.scrollTop = chatBox.scrollHeight;
+        els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
     }
 
-    function showToast(msg, color = "#ef4444") {
-        toast.innerText = msg;
-        toast.style.background = color;
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 3000);
+    function showToast(msg, color) {
+        els.toast.innerText = msg;
+        els.toast.style.backgroundColor = color || "#323232";
+        els.toast.classList.add('show');
+        setTimeout(() => els.toast.classList.remove('show'), 3000);
     }
 </script>
 
